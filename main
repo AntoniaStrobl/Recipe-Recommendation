@@ -1,0 +1,51 @@
+import re
+from collections import Counter
+import operator
+
+# Function to preprocess a document: tokenizing, lowercasing and counting words
+def preprocess_document(doc_tokens):
+    words = re.findall(r'\b\w+\b', doc_tokens.lower())
+    return Counter(words)
+
+# Function to calculate similarity between two vectors (documents)
+def calculate_similarity(vec1, vec2, method='cosine'):
+    if method == 'dot_product':
+        dot_product = sum(vec1[word] * vec2[word] for word in set(vec1) & set(vec2))
+        return dot_product
+    elif method == 'euclidean':
+        squared_distance = sum((vec1[word] - vec2[word]) ** 2 for word in set(vec1) | set(vec2))
+        return round(squared_distance ** 0.5, 3)
+    elif method == 'cosine':
+        dot_product = sum(vec1[word] * vec2[word] for word in set(vec1) & set(vec2))
+        magnitude_vec1 = sum(vec1[word] ** 2 for word in vec1) ** 0.5
+        magnitude_vec2 = sum(vec2[word] ** 2 for word in vec2) ** 0.5
+        if magnitude_vec1 == 0 or magnitude_vec2 == 0:
+            return 0
+        return round(dot_product / (magnitude_vec1 * magnitude_vec2), 3)
+    else:
+        raise ValueError("Invalid similarity measure. Use 'dot_product', 'euclidean', or 'cosine'.")
+
+# Function to compute text similarity between a search document and a corpus
+def text_similarity_sorted(corpus, search_doc_tokens, doc_variables, similarity_method='cosine'):
+    try:
+        if not search_doc_tokens:
+            raise ValueError("Search document is empty.")
+        
+        corpus_tokens = [preprocess_document(doc_tokens) for doc_tokens in corpus]
+        search_doc_tokens = preprocess_document(search_doc_tokens)
+
+        similarity_scores = {i: calculate_similarity(search_doc_tokens, doc_tokens, similarity_method) for i, doc_tokens in enumerate(corpus_tokens)}
+
+        if similarity_method == 'euclidean':
+            ranked_indices = sorted(similarity_scores.items(), key=operator.itemgetter(1))
+        else:
+            ranked_indices = sorted(similarity_scores.items(), key=operator.itemgetter(1), reverse=True)
+
+        print(f"Similarity scores and sorted outcome for {similarity_method} Method:")
+        for i, score in ranked_indices:
+            print(f"Similarity Score for {doc_variables[i]}: {score}")
+
+        return [doc_variables[i] for i, _ in ranked_indices]
+    except ValueError as search_doc_empty:
+        print(f"Error: {search_doc_empty}")
+        return []
